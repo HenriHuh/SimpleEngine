@@ -37,6 +37,7 @@ int Application::run()
     while (!glfwWindowShouldClose(m_window))
     {
         processInput();
+        update();
         render();
 
         glfwSwapBuffers(m_window);
@@ -91,6 +92,7 @@ bool Application::initializeOpenGL()
     glViewport(0, 0, framebufferWidth, framebufferHeight);
 
     m_renderer = std::make_unique<Renderer>();
+    m_lastFrameTime = static_cast<float>(glfwGetTime());
     return m_renderer->initialize();
 }
 
@@ -102,13 +104,20 @@ void Application::processInput()
     }
 }
 
+void Application::update()
+{
+    const float currentFrameTime = static_cast<float>(glfwGetTime());
+    m_elapsedTime += currentFrameTime - m_lastFrameTime;
+    m_lastFrameTime = currentFrameTime;
+}
+
 void Application::render()
 {
     int framebufferWidth = 0;
     int framebufferHeight = 0;
     glfwGetFramebufferSize(m_window, &framebufferWidth, &framebufferHeight);
 
-    m_renderer->render(framebufferWidth, framebufferHeight);
+    m_renderer->render(framebufferWidth, framebufferHeight, m_elapsedTime);
 }
 
 void Application::cleanup()

@@ -22,9 +22,12 @@ private:
     bool initializeOpenGL();
 
     void processInput();
+    void update();
     void render();
     void cleanup();
 
     GLFWwindow* m_window = nullptr;
     std::unique_ptr<Renderer> m_renderer;
+    float m_lastFrameTime = 0.0f;
+    float m_elapsedTime = 0.0f;
 };

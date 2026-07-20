@@ -185,14 +185,14 @@ bool Renderer::createBoxResources()
     return true;
 }
 
-void Renderer::render(int framebufferWidth, int framebufferHeight)
+void Renderer::render(int framebufferWidth, int framebufferHeight, float elapsedTime)
 {
     glClearColor(0.08f, 0.10f, 0.12f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     const float aspectRatio = framebufferHeight > 0 ? static_cast<float>(framebufferWidth) / static_cast<float>(framebufferHeight) : 1.0f;
 
-    const glm::mat4 model = glm::rotate(glm::mat4(1.0f), glm::radians(-22.0f), glm::vec3(0.4f, 1.0f, 0.0f));
+    const glm::mat4 model = glm::rotate(glm::mat4(1.0f), elapsedTime, glm::vec3(0.4f, 1.0f, 0.0f));
     const glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -3.0f));
     const glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 100.0f);
 

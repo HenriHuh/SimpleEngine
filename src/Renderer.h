@@ -10,7 +10,7 @@ public:
     Renderer& operator=(const Renderer&) = delete;
 
     bool initialize();
-    void render(int framebufferWidth, int framebufferHeight);
+    void render(int framebufferWidth, int framebufferHeight, float elapsedTime);
     void cleanup();
 
 private:
