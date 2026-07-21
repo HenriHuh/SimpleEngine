@@ -40,6 +40,7 @@ find_package(OpenGL REQUIRED)
 
 add_executable(SimpleEngine
     src/Application.cpp
+    src/Camera.cpp
     src/Mesh.cpp
     src/Renderer.cpp
     src/main.cpp

@@ -2,6 +2,8 @@
 
 #include "Mesh.h"
 
+#include <glm/mat4x4.hpp>
+
 class Renderer
 {
 public:
@@ -12,7 +14,7 @@ public:
     Renderer& operator=(const Renderer&) = delete;
 
     bool initialize();
-    void render(int framebufferWidth, int framebufferHeight, float elapsedTime);
+    void render(int framebufferWidth, int framebufferHeight, const glm::mat4& view, float elapsedTime);
     void cleanup();
 
 private:

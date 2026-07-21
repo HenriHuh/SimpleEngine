@@ -10,6 +10,8 @@
 
 namespace
 {
+// A vertex shader runs once for every vertex submitted by the mesh. Attribute
+// locations 0 and 1 match the position and color layout configured by Mesh.
 constexpr const char* VertexShaderSource = R"(
 #version 330 core
 
@@ -24,11 +26,18 @@ uniform mat4 uProjection;
 
 void main()
 {
+    // Values written to an "out" variable are smoothly interpolated across the
+    // triangle before they reach the fragment shader.
     vertexColor = aColor;
+
+    // Move the vertex from local space, through world and camera space, into
+    // clip space. OpenGL uses gl_Position to assemble and rasterize triangles.
     gl_Position = uProjection * uView * uModel * vec4(aPosition, 1.0);
 }
 )";
 
+// A fragment shader runs for every covered screen sample (roughly, every pixel
+// of the triangle). Here it simply writes the interpolated vertex color.
 constexpr const char* FragmentShaderSource = R"(
 #version 330 core
 
@@ -44,10 +53,13 @@ void main()
 
 unsigned int compileShader(unsigned int shaderType, const char* source)
 {
+    // Shader source code is compiled by the graphics driver at runtime.
     const unsigned int shader = glCreateShader(shaderType);
     glShaderSource(shader, 1, &source, nullptr);
     glCompileShader(shader);
 
+    // Compilation errors are reported here instead of failing silently later
+    // when the shader program is used for drawing.
     int success = 0;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     if (!success)
@@ -64,6 +76,8 @@ unsigned int compileShader(unsigned int shaderType, const char* source)
 
 unsigned int createShaderProgram()
 {
+    // Vertex and fragment shaders are compiled independently, then linked into
+    // one program that represents the programmable part of our pipeline.
     const unsigned int vertexShader = compileShader(GL_VERTEX_SHADER, VertexShaderSource);
     if (vertexShader == 0)
     {
@@ -82,6 +96,8 @@ unsigned int createShaderProgram()
     glAttachShader(shaderProgram, fragmentShader);
     glLinkProgram(shaderProgram);
 
+    // Linking copies the compiled shader code into the program, so the separate
+    // shader objects are no longer needed after this point.
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 
@@ -107,12 +123,16 @@ Renderer::~Renderer()
 
 bool Renderer::initialize()
 {
+    // Keep the fragment closest to the camera when triangles overlap. Without
+    // a depth buffer test, later triangles would always paint over earlier ones.
     glEnable(GL_DEPTH_TEST);
     return createResources();
 }
 
 bool Renderer::createResources()
 {
+    // These objects live on the GPU and only need to be created once. Each frame
+    // can then reuse the same shader program and cube buffers.
     m_shaderProgram = createShaderProgram();
     if (m_shaderProgram == 0)
     {
@@ -123,27 +143,40 @@ bool Renderer::createResources()
     return m_cube.isValid();
 }
 
-void Renderer::render(int framebufferWidth, int framebufferHeight, float elapsedTime)
+void Renderer::render(int framebufferWidth, int framebufferHeight, const glm::mat4& view, float elapsedTime)
 {
+    // Clear both last frame's color and its depth information before drawing the
+    // new frame. The clear color becomes the window background.
     glClearColor(0.08f, 0.10f, 0.12f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    // The projection needs the framebuffer's aspect ratio so the cube does not
+    // stretch when the window changes shape. Height can be zero while minimized.
     const float aspectRatio = framebufferHeight > 0 ? static_cast<float>(framebufferWidth) / static_cast<float>(framebufferHeight) : 1.0f;
 
+    // Model transforms the cube from its own local coordinates into the world.
+    // elapsedTime is in seconds, and glm::rotate expects its angle in radians.
     const glm::mat4 model = glm::rotate(glm::mat4(1.0f), elapsedTime, glm::vec3(0.4f, 1.0f, 0.0f));
-    const glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -3.0f));
+
+    // Projection adds perspective: distant geometry appears smaller. The last
+    // two values are the near and far visible clipping distances.
     const glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 100.0f);
 
+    // Select the shader program, then upload this frame's transforms to its
+    // uniform variables. GL_FALSE tells OpenGL not to transpose GLM's matrices.
     glUseProgram(m_shaderProgram);
     glUniformMatrix4fv(glGetUniformLocation(m_shaderProgram, "uModel"), 1, GL_FALSE, glm::value_ptr(model));
     glUniformMatrix4fv(glGetUniformLocation(m_shaderProgram, "uView"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(glGetUniformLocation(m_shaderProgram, "uProjection"), 1, GL_FALSE, glm::value_ptr(projection));
 
+    // Mesh::draw binds the cube's vertex layout and asks OpenGL to draw its
+    // indexed triangles with glDrawElements.
     m_cube.draw();
 }
 
 void Renderer::cleanup()
 {
+    // GPU resources must be released while the OpenGL context still exists.
     m_cube.cleanup();
 
     if (m_shaderProgram != 0)

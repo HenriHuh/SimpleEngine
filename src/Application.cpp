@@ -36,8 +36,8 @@ int Application::run()
 
     while (!glfwWindowShouldClose(m_window))
     {
-        processInput();
         update();
+        processInput(m_deltaTime);
         render();
 
         glfwSwapBuffers(m_window);
@@ -96,18 +96,41 @@ bool Application::initializeOpenGL()
     return m_renderer->initialize();
 }
 
-void Application::processInput()
+void Application::processInput(float deltaTime)
 {
     if (glfwGetKey(m_window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
     {
         glfwSetWindowShouldClose(m_window, GLFW_TRUE);
     }
+
+    float forwardInput = 0.0f;
+    float rightInput = 0.0f;
+
+    if (glfwGetKey(m_window, GLFW_KEY_W) == GLFW_PRESS)
+    {
+        forwardInput += 1.0f;
+    }
+    if (glfwGetKey(m_window, GLFW_KEY_S) == GLFW_PRESS)
+    {
+        forwardInput -= 1.0f;
+    }
+    if (glfwGetKey(m_window, GLFW_KEY_D) == GLFW_PRESS)
+    {
+        rightInput += 1.0f;
+    }
+    if (glfwGetKey(m_window, GLFW_KEY_A) == GLFW_PRESS)
+    {
+        rightInput -= 1.0f;
+    }
+
+    m_camera.move(forwardInput, rightInput, deltaTime);
 }
 
 void Application::update()
 {
     const float currentFrameTime = static_cast<float>(glfwGetTime());
-    m_elapsedTime += currentFrameTime - m_lastFrameTime;
+    m_deltaTime = currentFrameTime - m_lastFrameTime;
+    m_elapsedTime += m_deltaTime;
     m_lastFrameTime = currentFrameTime;
 }
 
@@ -117,7 +140,7 @@ void Application::render()
     int framebufferHeight = 0;
     glfwGetFramebufferSize(m_window, &framebufferWidth, &framebufferHeight);
 
-    m_renderer->render(framebufferWidth, framebufferHeight, m_elapsedTime);
+    m_renderer->render(framebufferWidth, framebufferHeight, m_camera.getViewMatrix(), m_elapsedTime);
 }
 
 void Application::cleanup()
