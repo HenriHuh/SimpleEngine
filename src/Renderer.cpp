@@ -1,5 +1,7 @@
 #include "Renderer.h"
 
+#include "Model.h"
+
 #include <glad/gl.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -16,9 +18,8 @@ constexpr const char* VertexShaderSource = R"(
 #version 330 core
 
 layout (location = 0) in vec3 aPosition;
-layout (location = 1) in vec3 aColor;
-
-out vec3 vertexColor;
+layout (location = 1) in vec3 aNormal;
+layout (location = 2) in vec2 aTextureCoordinates;
 
 uniform mat4 uModel;
 uniform mat4 uView;
@@ -26,10 +27,6 @@ uniform mat4 uProjection;
 
 void main()
 {
-    // Values written to an "out" variable are smoothly interpolated across the
-    // triangle before they reach the fragment shader.
-    vertexColor = aColor;
-
     // Move the vertex from local space, through world and camera space, into
     // clip space. OpenGL uses gl_Position to assemble and rasterize triangles.
     gl_Position = uProjection * uView * uModel * vec4(aPosition, 1.0);
@@ -41,13 +38,13 @@ void main()
 constexpr const char* FragmentShaderSource = R"(
 #version 330 core
 
-in vec3 vertexColor;
-
 out vec4 fragColor;
+
+uniform vec3 uColor;
 
 void main()
 {
-    fragColor = vec4(vertexColor, 1.0);
+    fragColor = vec4(uColor, 1.0);
 }
 )";
 
@@ -284,14 +281,28 @@ void Renderer::beginFrame(int framebufferWidth, int framebufferHeight, const glm
 
 void Renderer::drawCube(const glm::mat4& model)
 {
+    drawMesh(m_cube, model, glm::vec3(0.25f, 0.65f, 0.9f));
+}
+
+void Renderer::drawMesh(const Mesh& mesh, const glm::mat4& model, const glm::vec3& color)
+{
     // The model matrix changes for each object, while the view and projection
     // set by beginFrame are shared by every object in the frame.
     glUseProgram(m_shaderProgram);
     glUniformMatrix4fv(glGetUniformLocation(m_shaderProgram, "uModel"), 1, GL_FALSE, glm::value_ptr(model));
+    glUniform3fv(glGetUniformLocation(m_shaderProgram, "uColor"), 1, glm::value_ptr(color));
 
-    // Mesh::draw binds the cube's vertex layout and asks OpenGL to draw its
+    // Mesh::draw binds the mesh's vertex layout and asks OpenGL to draw its
     // indexed triangles with glDrawElements.
-    m_cube.draw();
+    mesh.draw();
+}
+
+void Renderer::drawModel(const Model& model, const glm::mat4& transform, const glm::vec3& color)
+{
+    for (const ModelPart& part : model.getParts())
+    {
+        drawMesh(part.mesh, transform * part.localTransform, color);
+    }
 }
 
 void Renderer::drawLine(const glm::vec3& start, const glm::vec3& end, const glm::vec4& color)

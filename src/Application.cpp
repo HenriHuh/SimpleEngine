@@ -2,11 +2,15 @@
 
 #include "Application.h"
 
+#include "Model.h"
 #include "Renderer.h"
 
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
+#include <glm/gtc/matrix_transform.hpp>
+
+#include <filesystem>
 #include <iostream>
 
 namespace
@@ -102,7 +106,24 @@ bool Application::initializeOpenGL()
 
     m_renderer = std::make_unique<Renderer>();
     m_lastFrameTime = static_cast<float>(glfwGetTime());
-    return m_renderer->initialize();
+    if (!m_renderer->initialize())
+    {
+        return false;
+    }
+
+    const std::filesystem::path enemyModelPath =
+        std::filesystem::path(SIMPLE_ENGINE_ASSET_DIR) / "models" / "ship.glb";
+
+    m_enemyModel = std::make_unique<Model>();
+    if (!m_enemyModel->loadFromFile(enemyModelPath))
+    {
+        std::cerr << "Could not load enemy model at " << enemyModelPath << ": "
+                  << m_enemyModel->getLastError()
+                  << " Falling back to cubes.\n";
+        m_enemyModel.reset();
+    }
+
+    return true;
 }
 
 GameInput Application::processInput()
@@ -190,7 +211,19 @@ void Application::render()
 
     for (const Enemy& enemy : m_game.getEnemies())
     {
-        m_renderer->drawCube(enemy.transform.getMatrix());
+        if (m_enemyModel)
+        {
+            // The Blender placeholder is larger than the old unit cube, so
+            // keep its rendered size close to the existing collision radius.
+            const glm::mat4 modelTransform = glm::scale(
+                enemy.transform.getMatrix(),
+                glm::vec3(0.25f));
+            m_renderer->drawModel(*m_enemyModel, modelTransform, glm::vec3(0.25f, 0.65f, 0.9f));
+        }
+        else
+        {
+            m_renderer->drawCube(enemy.transform.getMatrix());
+        }
     }
 
     for (const Projectile& projectile : m_game.getProjectiles())
@@ -209,6 +242,8 @@ void Application::render()
 
 void Application::cleanup()
 {
+    // Models own OpenGL buffers and must be destroyed while the context is alive.
+    m_enemyModel.reset();
     m_renderer.reset();
 
     if (m_window)

@@ -12,6 +12,12 @@ set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLM_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(TINYGLTF_BUILD_LOADER_EXAMPLE OFF CACHE BOOL "" FORCE)
+set(TINYGLTF_BUILD_GL_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(TINYGLTF_BUILD_VALIDATOR_EXAMPLE OFF CACHE BOOL "" FORCE)
+set(TINYGLTF_BUILD_BUILDER_EXAMPLE OFF CACHE BOOL "" FORCE)
+set(TINYGLTF_HEADER_ONLY OFF CACHE BOOL "" FORCE)
+set(TINYGLTF_INSTALL OFF CACHE BOOL "" FORCE)
 
 FetchContent_Declare(
     glfw
@@ -26,7 +32,14 @@ FetchContent_Declare(
     GIT_SHALLOW TRUE
 )
 
-FetchContent_MakeAvailable(glfw glm)
+FetchContent_Declare(
+    tinygltf
+    GIT_REPOSITORY https://github.com/syoyo/tinygltf.git
+    GIT_TAG v2.9.7
+    GIT_SHALLOW TRUE
+)
+
+FetchContent_MakeAvailable(glfw glm tinygltf)
 
 add_library(glad_gl_core_33 STATIC
     external/glad/src/gl.c
@@ -43,15 +56,21 @@ add_executable(SimpleEngine
     src/Camera.cpp
     src/Game.cpp
     src/Mesh.cpp
+    src/Model.cpp
     src/Renderer.cpp
     src/Transform.cpp
     src/main.cpp
+)
+
+target_compile_definitions(SimpleEngine PRIVATE
+    SIMPLE_ENGINE_ASSET_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets"
 )
 
 target_link_libraries(SimpleEngine PRIVATE
     glfw
     glad_gl_core_33
     OpenGL::GL
+    tinygltf
 )
 
 if(TARGET glm::glm)

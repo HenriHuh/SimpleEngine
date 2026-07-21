@@ -6,6 +6,8 @@
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 
+class Model;
+
 class Renderer
 {
 public:
@@ -18,6 +20,8 @@ public:
     bool initialize();
     void beginFrame(int framebufferWidth, int framebufferHeight, const glm::mat4& view);
     void drawCube(const glm::mat4& model);
+    void drawMesh(const Mesh& mesh, const glm::mat4& model, const glm::vec3& color);
+    void drawModel(const Model& model, const glm::mat4& transform, const glm::vec3& color);
     void drawLine(const glm::vec3& start, const glm::vec3& end, const glm::vec4& color);
     void drawCrosshair(int framebufferWidth, int framebufferHeight);
     void cleanup();

@@ -5,6 +5,7 @@
 #include <memory>
 
 struct GLFWwindow;
+class Model;
 class Renderer;
 
 class Application
@@ -31,6 +32,7 @@ private:
 
     GLFWwindow* m_window = nullptr;
     std::unique_ptr<Renderer> m_renderer;
+    std::unique_ptr<Model> m_enemyModel;
     Game m_game;
     float m_deltaTime = 0.0f;
     float m_lastFrameTime = 0.0f;

@@ -1,11 +1,16 @@
 #pragma once
 
+#include <cstdint>
+#include <vector>
+
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
 struct Vertex
 {
     glm::vec3 position;
-    glm::vec3 color;
+    glm::vec3 normal;
+    glm::vec2 textureCoordinates;
 };
 
 class Mesh
@@ -20,6 +25,7 @@ public:
     Mesh(Mesh&& other) noexcept;
     Mesh& operator=(Mesh&& other) noexcept;
 
+    static Mesh create(const std::vector<Vertex>& vertices, const std::vector<std::uint32_t>& indices);
     static Mesh createCube();
 
     void draw() const;
