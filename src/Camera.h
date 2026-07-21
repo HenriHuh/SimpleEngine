@@ -7,12 +7,12 @@ class Camera
 public:
     glm::mat4 getViewMatrix() const;
     const Transform& getTransform() const;
+    glm::vec3 getForwardDirection() const;
 
     void move(float forwardInput, float rightInput, float deltaTime);
     void look(float horizontalOffset, float verticalOffset);
 
 private:
-    glm::vec3 getForwardDirection() const;
     glm::vec3 getRightDirection() const;
 
     Transform m_transform{

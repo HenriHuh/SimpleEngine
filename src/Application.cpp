@@ -131,6 +131,8 @@ GameInput Application::processInput()
         input.moveRight -= 1.0f;
     }
 
+    input.shoot = glfwGetMouseButton(m_window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+
     processMouseInput(input);
     return input;
 }
@@ -175,11 +177,13 @@ void Application::render()
     int framebufferHeight = 0;
     glfwGetFramebufferSize(m_window, &framebufferWidth, &framebufferHeight);
 
-    m_renderer->render(
-        framebufferWidth,
-        framebufferHeight,
-        m_game.getTargetTransform().getMatrix(),
-        m_game.getCamera().getViewMatrix());
+    m_renderer->beginFrame(framebufferWidth, framebufferHeight, m_game.getCamera().getViewMatrix());
+    m_renderer->drawCube(m_game.getEnemy().transform.getMatrix());
+
+    for (const Projectile& projectile : m_game.getProjectiles())
+    {
+        m_renderer->drawCube(projectile.transform.getMatrix());
+    }
 }
 
 void Application::cleanup()

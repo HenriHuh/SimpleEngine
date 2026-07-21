@@ -14,11 +14,8 @@ public:
     Renderer& operator=(const Renderer&) = delete;
 
     bool initialize();
-    void render(
-        int framebufferWidth,
-        int framebufferHeight,
-        const glm::mat4& model,
-        const glm::mat4& view);
+    void beginFrame(int framebufferWidth, int framebufferHeight, const glm::mat4& view);
+    void drawCube(const glm::mat4& model);
     void cleanup();
 
 private:

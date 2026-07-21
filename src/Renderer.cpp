@@ -143,11 +143,7 @@ bool Renderer::createResources()
     return m_cube.isValid();
 }
 
-void Renderer::render(
-    int framebufferWidth,
-    int framebufferHeight,
-    const glm::mat4& model,
-    const glm::mat4& view)
+void Renderer::beginFrame(int framebufferWidth, int framebufferHeight, const glm::mat4& view)
 {
     // Clear both last frame's color and its depth information before drawing the
     // new frame. The clear color becomes the window background.
@@ -165,9 +161,15 @@ void Renderer::render(
     // Select the shader program, then upload this frame's transforms to its
     // uniform variables. GL_FALSE tells OpenGL not to transpose GLM's matrices.
     glUseProgram(m_shaderProgram);
-    glUniformMatrix4fv(glGetUniformLocation(m_shaderProgram, "uModel"), 1, GL_FALSE, glm::value_ptr(model));
     glUniformMatrix4fv(glGetUniformLocation(m_shaderProgram, "uView"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(glGetUniformLocation(m_shaderProgram, "uProjection"), 1, GL_FALSE, glm::value_ptr(projection));
+}
+
+void Renderer::drawCube(const glm::mat4& model)
+{
+    // The model matrix changes for each object, while the view and projection
+    // set by beginFrame are shared by every object in the frame.
+    glUniformMatrix4fv(glGetUniformLocation(m_shaderProgram, "uModel"), 1, GL_FALSE, glm::value_ptr(model));
 
     // Mesh::draw binds the cube's vertex layout and asks OpenGL to draw its
     // indexed triangles with glDrawElements.
