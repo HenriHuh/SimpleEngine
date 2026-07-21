@@ -13,6 +13,7 @@ public:
 
 private:
     glm::vec3 getForwardDirection() const;
+    glm::vec3 getRightDirection() const;
 
     Transform m_transform{
         glm::vec3(0.0f, 0.0f, 3.0f),

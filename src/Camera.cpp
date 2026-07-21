@@ -1,10 +1,5 @@
 #include "Camera.h"
 
-namespace
-{
-constexpr glm::vec3 WorldUp{0.0f, 1.0f, 0.0f};
-}
-
 glm::mat4 Camera::getViewMatrix() const
 {
     // A view matrix moves the world in the opposite direction of the camera,
@@ -19,12 +14,11 @@ const Transform& Camera::getTransform() const
 
 void Camera::move(float forwardInput, float rightInput, float deltaTime)
 {
-    // Ignore the vertical part of the look direction so WASD movement stays
-    // parallel to the ground while the player looks up or down.
+    // Use the camera's complete local axes so movement follows its look
+    // rotation in all three dimensions, as expected for space flight.
     const glm::vec3 forward = getForwardDirection();
-    const glm::vec3 groundForward = glm::normalize(glm::vec3(forward.x, 0.0f, forward.z));
-    const glm::vec3 right = glm::normalize(glm::cross(groundForward, WorldUp));
-    glm::vec3 movement = groundForward * forwardInput + right * rightInput;
+    const glm::vec3 right = getRightDirection();
+    glm::vec3 movement = forward * forwardInput + right * rightInput;
 
     // Normalizing prevents diagonal movement from being faster than movement
     // along a single axis.
@@ -51,4 +45,10 @@ glm::vec3 Camera::getForwardDirection() const
 {
     const glm::vec4 localForward{0.0f, 0.0f, -1.0f, 0.0f};
     return glm::normalize(glm::vec3(m_transform.getMatrix() * localForward));
+}
+
+glm::vec3 Camera::getRightDirection() const
+{
+    const glm::vec4 localRight{1.0f, 0.0f, 0.0f, 0.0f};
+    return glm::normalize(glm::vec3(m_transform.getMatrix() * localRight));
 }

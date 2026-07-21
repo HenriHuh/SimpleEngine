@@ -38,8 +38,9 @@ int Application::run()
     {
         glfwPollEvents();
 
-        update();
-        processInput(m_deltaTime);
+        updateFrameTime();
+        const GameInput input = processInput();
+        m_game.update(m_deltaTime, input);
         render();
 
         glfwSwapBuffers(m_window);
@@ -104,38 +105,37 @@ bool Application::initializeOpenGL()
     return m_renderer->initialize();
 }
 
-void Application::processInput(float deltaTime)
+GameInput Application::processInput()
 {
+    GameInput input;
+
     if (glfwGetKey(m_window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
     {
         glfwSetWindowShouldClose(m_window, GLFW_TRUE);
     }
 
-    float forwardInput = 0.0f;
-    float rightInput = 0.0f;
-
     if (glfwGetKey(m_window, GLFW_KEY_W) == GLFW_PRESS)
     {
-        forwardInput += 1.0f;
+        input.moveForward += 1.0f;
     }
     if (glfwGetKey(m_window, GLFW_KEY_S) == GLFW_PRESS)
     {
-        forwardInput -= 1.0f;
+        input.moveForward -= 1.0f;
     }
     if (glfwGetKey(m_window, GLFW_KEY_D) == GLFW_PRESS)
     {
-        rightInput += 1.0f;
+        input.moveRight += 1.0f;
     }
     if (glfwGetKey(m_window, GLFW_KEY_A) == GLFW_PRESS)
     {
-        rightInput -= 1.0f;
+        input.moveRight -= 1.0f;
     }
 
-    m_camera.move(forwardInput, rightInput, deltaTime);
-    processMouseInput();
+    processMouseInput(input);
+    return input;
 }
 
-void Application::processMouseInput()
+void Application::processMouseInput(GameInput& input)
 {
     double mouseX = 0.0;
     double mouseY = 0.0;
@@ -158,17 +158,15 @@ void Application::processMouseInput()
 
     // GLFW's Y coordinates increase downward, so the subtraction above is
     // reversed to make moving the mouse upward look upward.
-    m_camera.look(horizontalOffset, verticalOffset);
+    input.lookHorizontal = horizontalOffset;
+    input.lookVertical = verticalOffset;
 }
 
-void Application::update()
+void Application::updateFrameTime()
 {
     const float currentFrameTime = static_cast<float>(glfwGetTime());
     m_deltaTime = currentFrameTime - m_lastFrameTime;
     m_lastFrameTime = currentFrameTime;
-
-    m_cubeTransform.rotation.x += 0.4f * m_deltaTime;
-    m_cubeTransform.rotation.y += 1.0f * m_deltaTime;
 }
 
 void Application::render()
@@ -180,8 +178,8 @@ void Application::render()
     m_renderer->render(
         framebufferWidth,
         framebufferHeight,
-        m_cubeTransform.getMatrix(),
-        m_camera.getViewMatrix());
+        m_game.getTargetTransform().getMatrix(),
+        m_game.getCamera().getViewMatrix());
 }
 
 void Application::cleanup()
