@@ -130,8 +130,17 @@ GameInput Application::processInput()
     {
         input.moveRight -= 1.0f;
     }
+    if (glfwGetKey(m_window, GLFW_KEY_SPACE) == GLFW_PRESS)
+    {
+        input.moveUp += 1.0f;
+    }
+    if (glfwGetKey(m_window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
+    {
+        input.moveUp -= 1.0f;
+    }
 
-    input.shoot = glfwGetMouseButton(m_window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+    input.fireRaycast = glfwGetMouseButton(m_window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+    input.fireProjectile = glfwGetMouseButton(m_window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
 
     processMouseInput(input);
     return input;
@@ -178,12 +187,24 @@ void Application::render()
     glfwGetFramebufferSize(m_window, &framebufferWidth, &framebufferHeight);
 
     m_renderer->beginFrame(framebufferWidth, framebufferHeight, m_game.getCamera().getViewMatrix());
-    m_renderer->drawCube(m_game.getEnemy().transform.getMatrix());
+
+    for (const Enemy& enemy : m_game.getEnemies())
+    {
+        m_renderer->drawCube(enemy.transform.getMatrix());
+    }
 
     for (const Projectile& projectile : m_game.getProjectiles())
     {
         m_renderer->drawCube(projectile.transform.getMatrix());
     }
+
+    for (const RaycastTracer& tracer : m_game.getRaycastTracers())
+    {
+        const float opacity = tracer.remainingLifetime / tracer.lifetime;
+        m_renderer->drawLine(tracer.start, tracer.end, glm::vec4(0.25f, 0.9f, 1.0f, opacity));
+    }
+
+    m_renderer->drawCrosshair(framebufferWidth, framebufferHeight);
 }
 
 void Application::cleanup()

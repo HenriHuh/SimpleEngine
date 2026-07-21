@@ -3,21 +3,25 @@
 #include "Camera.h"
 #include "Transform.h"
 
+#include <random>
 #include <vector>
 
 struct GameInput
 {
     float moveForward = 0.0f;
     float moveRight = 0.0f;
+    float moveUp = 0.0f;
     float lookHorizontal = 0.0f;
     float lookVertical = 0.0f;
-    bool shoot = false;
+    bool fireRaycast = false;
+    bool fireProjectile = false;
 };
 
 struct Enemy
 {
     Transform transform;
-    int health = 3;
+    int id = 0;
+    int health = 5;
 };
 
 struct Projectile
@@ -28,6 +32,14 @@ struct Projectile
     int damage = 1;
 };
 
+struct RaycastTracer
+{
+    glm::vec3 start{0.0f};
+    glm::vec3 end{0.0f};
+    float lifetime = 0.15f;
+    float remainingLifetime = 0.15f;
+};
+
 class Game
 {
 public:
@@ -36,16 +48,23 @@ public:
     void update(float deltaTime, const GameInput& input);
 
     const Camera& getCamera() const;
-    const Enemy& getEnemy() const;
+    const std::vector<Enemy>& getEnemies() const;
     const std::vector<Projectile>& getProjectiles() const;
+    const std::vector<RaycastTracer>& getRaycastTracers() const;
 
 private:
-    void shoot();
+    void shootRaycast();
+    void shootProjectile();
     void updateProjectiles(float deltaTime);
-    void spawnEnemy();
+    void updateRaycastTracers(float deltaTime);
+    void damageEnemy(Enemy& enemy, int damage);
+    void spawnEnemy(Enemy& enemy);
 
     Camera m_camera;
-    Enemy m_enemy;
+    std::vector<Enemy> m_enemies;
     std::vector<Projectile> m_projectiles;
-    float m_shotCooldown = 0.0f;
+    std::vector<RaycastTracer> m_raycastTracers;
+    std::mt19937 m_randomGenerator;
+    float m_raycastCooldown = 0.0f;
+    float m_projectileCooldown = 0.0f;
 };

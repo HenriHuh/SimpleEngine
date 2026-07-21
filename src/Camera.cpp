@@ -12,13 +12,14 @@ const Transform& Camera::getTransform() const
     return m_transform;
 }
 
-void Camera::move(float forwardInput, float rightInput, float deltaTime)
+void Camera::move(float forwardInput, float rightInput, float upInput, float deltaTime)
 {
     // Use the camera's complete local axes so movement follows its look
     // rotation in all three dimensions, as expected for space flight.
     const glm::vec3 forward = getForwardDirection();
     const glm::vec3 right = getRightDirection();
-    glm::vec3 movement = forward * forwardInput + right * rightInput;
+    const glm::vec3 up = getUpDirection();
+    glm::vec3 movement = forward * forwardInput + right * rightInput + up * upInput;
 
     // Normalizing prevents diagonal movement from being faster than movement
     // along a single axis.
@@ -51,4 +52,10 @@ glm::vec3 Camera::getRightDirection() const
 {
     const glm::vec4 localRight{1.0f, 0.0f, 0.0f, 0.0f};
     return glm::normalize(glm::vec3(m_transform.getMatrix() * localRight));
+}
+
+glm::vec3 Camera::getUpDirection() const
+{
+    const glm::vec4 localUp{0.0f, 1.0f, 0.0f, 0.0f};
+    return glm::normalize(glm::vec3(m_transform.getMatrix() * localUp));
 }

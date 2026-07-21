@@ -9,11 +9,12 @@ public:
     const Transform& getTransform() const;
     glm::vec3 getForwardDirection() const;
 
-    void move(float forwardInput, float rightInput, float deltaTime);
+    void move(float forwardInput, float rightInput, float upInput, float deltaTime);
     void look(float horizontalOffset, float verticalOffset);
 
 private:
     glm::vec3 getRightDirection() const;
+    glm::vec3 getUpDirection() const;
 
     Transform m_transform{
         glm::vec3(0.0f, 0.0f, 3.0f),

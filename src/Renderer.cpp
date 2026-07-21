@@ -51,6 +51,75 @@ void main()
 }
 )";
 
+// Crosshair positions are stored as pixel offsets from the center of the
+// framebuffer. The shader converts them into OpenGL's -1 to +1 screen space.
+constexpr const char* CrosshairVertexShaderSource = R"(
+#version 330 core
+
+layout (location = 0) in vec2 aPixelOffset;
+
+uniform vec2 uFramebufferSize;
+
+void main()
+{
+    vec2 screenOffset = (aPixelOffset * 2.0) / uFramebufferSize;
+    gl_Position = vec4(screenOffset, 0.0, 1.0);
+}
+)";
+
+constexpr const char* CrosshairFragmentShaderSource = R"(
+#version 330 core
+
+out vec4 fragColor;
+
+void main()
+{
+    fragColor = vec4(0.95, 0.98, 1.0, 1.0);
+}
+)";
+
+constexpr const char* LineVertexShaderSource = R"(
+#version 330 core
+
+layout (location = 0) in vec3 aPosition;
+
+uniform mat4 uView;
+uniform mat4 uProjection;
+
+void main()
+{
+    gl_Position = uProjection * uView * vec4(aPosition, 1.0);
+}
+)";
+
+constexpr const char* LineFragmentShaderSource = R"(
+#version 330 core
+
+uniform vec4 uColor;
+
+out vec4 fragColor;
+
+void main()
+{
+    fragColor = uColor;
+}
+)";
+
+// Four two-pixel-wide rectangles form a crosshair with a small center gap.
+constexpr std::array<float, 48> CrosshairVertices = {
+    -11.0f, -1.0f,  -3.0f, -1.0f,  -3.0f,  1.0f,
+     -3.0f,  1.0f, -11.0f,  1.0f, -11.0f, -1.0f,
+
+      3.0f, -1.0f,  11.0f, -1.0f,  11.0f,  1.0f,
+     11.0f,  1.0f,   3.0f,  1.0f,   3.0f, -1.0f,
+
+     -1.0f, -11.0f,  1.0f, -11.0f,  1.0f, -3.0f,
+      1.0f,  -3.0f, -1.0f,  -3.0f, -1.0f, -11.0f,
+
+     -1.0f,  3.0f,   1.0f,  3.0f,   1.0f, 11.0f,
+      1.0f, 11.0f,  -1.0f, 11.0f,  -1.0f,  3.0f,
+};
+
 unsigned int compileShader(unsigned int shaderType, const char* source)
 {
     // Shader source code is compiled by the graphics driver at runtime.
@@ -74,17 +143,17 @@ unsigned int compileShader(unsigned int shaderType, const char* source)
     return shader;
 }
 
-unsigned int createShaderProgram()
+unsigned int createShaderProgram(const char* vertexSource, const char* fragmentSource)
 {
     // Vertex and fragment shaders are compiled independently, then linked into
     // one program that represents the programmable part of our pipeline.
-    const unsigned int vertexShader = compileShader(GL_VERTEX_SHADER, VertexShaderSource);
+    const unsigned int vertexShader = compileShader(GL_VERTEX_SHADER, vertexSource);
     if (vertexShader == 0)
     {
         return 0;
     }
 
-    const unsigned int fragmentShader = compileShader(GL_FRAGMENT_SHADER, FragmentShaderSource);
+    const unsigned int fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentSource);
     if (fragmentShader == 0)
     {
         glDeleteShader(vertexShader);
@@ -133,14 +202,56 @@ bool Renderer::createResources()
 {
     // These objects live on the GPU and only need to be created once. Each frame
     // can then reuse the same shader program and cube buffers.
-    m_shaderProgram = createShaderProgram();
+    m_shaderProgram = createShaderProgram(VertexShaderSource, FragmentShaderSource);
     if (m_shaderProgram == 0)
     {
         return false;
     }
 
+    m_crosshairShaderProgram = createShaderProgram(CrosshairVertexShaderSource, CrosshairFragmentShaderSource);
+    if (m_crosshairShaderProgram == 0)
+    {
+        return false;
+    }
+
+    m_lineShaderProgram = createShaderProgram(LineVertexShaderSource, LineFragmentShaderSource);
+    if (m_lineShaderProgram == 0)
+    {
+        return false;
+    }
+
+    glGenVertexArrays(1, &m_crosshairVertexArray);
+    glGenBuffers(1, &m_crosshairVertexBuffer);
+
+    glBindVertexArray(m_crosshairVertexArray);
+    glBindBuffer(GL_ARRAY_BUFFER, m_crosshairVertexBuffer);
+    glBufferData(
+        GL_ARRAY_BUFFER,
+        static_cast<GLsizeiptr>(CrosshairVertices.size() * sizeof(float)),
+        CrosshairVertices.data(),
+        GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), nullptr);
+    glEnableVertexAttribArray(0);
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    glGenVertexArrays(1, &m_lineVertexArray);
+    glGenBuffers(1, &m_lineVertexBuffer);
+
+    glBindVertexArray(m_lineVertexArray);
+    glBindBuffer(GL_ARRAY_BUFFER, m_lineVertexBuffer);
+    glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
+    glEnableVertexAttribArray(0);
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
     m_cube = Mesh::createCube();
-    return m_cube.isValid();
+    return m_cube.isValid()
+        && m_crosshairVertexArray != 0
+        && m_crosshairVertexBuffer != 0
+        && m_lineVertexArray != 0
+        && m_lineVertexBuffer != 0;
 }
 
 void Renderer::beginFrame(int framebufferWidth, int framebufferHeight, const glm::mat4& view)
@@ -163,12 +274,19 @@ void Renderer::beginFrame(int framebufferWidth, int framebufferHeight, const glm
     glUseProgram(m_shaderProgram);
     glUniformMatrix4fv(glGetUniformLocation(m_shaderProgram, "uView"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(glGetUniformLocation(m_shaderProgram, "uProjection"), 1, GL_FALSE, glm::value_ptr(projection));
+
+    // Lines share the same camera matrices as meshes, but use a separate
+    // shader because they have a single fading color instead of vertex colors.
+    glUseProgram(m_lineShaderProgram);
+    glUniformMatrix4fv(glGetUniformLocation(m_lineShaderProgram, "uView"), 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(m_lineShaderProgram, "uProjection"), 1, GL_FALSE, glm::value_ptr(projection));
 }
 
 void Renderer::drawCube(const glm::mat4& model)
 {
     // The model matrix changes for each object, while the view and projection
     // set by beginFrame are shared by every object in the frame.
+    glUseProgram(m_shaderProgram);
     glUniformMatrix4fv(glGetUniformLocation(m_shaderProgram, "uModel"), 1, GL_FALSE, glm::value_ptr(model));
 
     // Mesh::draw binds the cube's vertex layout and asks OpenGL to draw its
@@ -176,10 +294,98 @@ void Renderer::drawCube(const glm::mat4& model)
     m_cube.draw();
 }
 
+void Renderer::drawLine(const glm::vec3& start, const glm::vec3& end, const glm::vec4& color)
+{
+    const std::array<float, 6> vertices = {
+        start.x, start.y, start.z,
+        end.x, end.y, end.z,
+    };
+
+    glBindBuffer(GL_ARRAY_BUFFER, m_lineVertexBuffer);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, static_cast<GLsizeiptr>(vertices.size() * sizeof(float)), vertices.data());
+
+    glUseProgram(m_lineShaderProgram);
+    glUniform4fv(glGetUniformLocation(m_lineShaderProgram, "uColor"), 1, glm::value_ptr(color));
+
+    // Alpha blending makes the line fade as Game reduces its remaining life.
+    // Keep depth testing so the tracer still belongs to the 3D scene.
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDepthMask(GL_FALSE);
+    glLineWidth(2.0f);
+
+    glBindVertexArray(m_lineVertexArray);
+    glDrawArrays(GL_LINES, 0, 2);
+    glBindVertexArray(0);
+
+    glLineWidth(1.0f);
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+}
+
+void Renderer::drawCrosshair(int framebufferWidth, int framebufferHeight)
+{
+    if (framebufferWidth <= 0 || framebufferHeight <= 0)
+    {
+        return;
+    }
+
+    // The crosshair is a screen-space overlay, so it should not be hidden by
+    // depth values written while drawing the 3D scene.
+    glDisable(GL_DEPTH_TEST);
+    glUseProgram(m_crosshairShaderProgram);
+    glUniform2f(
+        glGetUniformLocation(m_crosshairShaderProgram, "uFramebufferSize"),
+        static_cast<float>(framebufferWidth),
+        static_cast<float>(framebufferHeight));
+
+    glBindVertexArray(m_crosshairVertexArray);
+    glDrawArrays(GL_TRIANGLES, 0, 24);
+    glBindVertexArray(0);
+
+    glEnable(GL_DEPTH_TEST);
+}
+
 void Renderer::cleanup()
 {
     // GPU resources must be released while the OpenGL context still exists.
     m_cube.cleanup();
+
+    if (m_crosshairVertexBuffer != 0)
+    {
+        glDeleteBuffers(1, &m_crosshairVertexBuffer);
+        m_crosshairVertexBuffer = 0;
+    }
+
+    if (m_crosshairVertexArray != 0)
+    {
+        glDeleteVertexArrays(1, &m_crosshairVertexArray);
+        m_crosshairVertexArray = 0;
+    }
+
+    if (m_crosshairShaderProgram != 0)
+    {
+        glDeleteProgram(m_crosshairShaderProgram);
+        m_crosshairShaderProgram = 0;
+    }
+
+    if (m_lineVertexBuffer != 0)
+    {
+        glDeleteBuffers(1, &m_lineVertexBuffer);
+        m_lineVertexBuffer = 0;
+    }
+
+    if (m_lineVertexArray != 0)
+    {
+        glDeleteVertexArrays(1, &m_lineVertexArray);
+        m_lineVertexArray = 0;
+    }
+
+    if (m_lineShaderProgram != 0)
+    {
+        glDeleteProgram(m_lineShaderProgram);
+        m_lineShaderProgram = 0;
+    }
 
     if (m_shaderProgram != 0)
     {
