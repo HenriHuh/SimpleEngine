@@ -43,6 +43,7 @@ add_executable(SimpleEngine
     src/Camera.cpp
     src/Mesh.cpp
     src/Renderer.cpp
+    src/Transform.cpp
     src/main.cpp
 )
 

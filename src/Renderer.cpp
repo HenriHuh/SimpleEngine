@@ -143,7 +143,11 @@ bool Renderer::createResources()
     return m_cube.isValid();
 }
 
-void Renderer::render(int framebufferWidth, int framebufferHeight, const glm::mat4& view, float elapsedTime)
+void Renderer::render(
+    int framebufferWidth,
+    int framebufferHeight,
+    const glm::mat4& model,
+    const glm::mat4& view)
 {
     // Clear both last frame's color and its depth information before drawing the
     // new frame. The clear color becomes the window background.
@@ -153,10 +157,6 @@ void Renderer::render(int framebufferWidth, int framebufferHeight, const glm::ma
     // The projection needs the framebuffer's aspect ratio so the cube does not
     // stretch when the window changes shape. Height can be zero while minimized.
     const float aspectRatio = framebufferHeight > 0 ? static_cast<float>(framebufferWidth) / static_cast<float>(framebufferHeight) : 1.0f;
-
-    // Model transforms the cube from its own local coordinates into the world.
-    // elapsedTime is in seconds, and glm::rotate expects its angle in radians.
-    const glm::mat4 model = glm::rotate(glm::mat4(1.0f), elapsedTime, glm::vec3(0.4f, 1.0f, 0.0f));
 
     // Projection adds perspective: distant geometry appears smaller. The last
     // two values are the near and far visible clipping distances.

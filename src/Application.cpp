@@ -36,12 +36,13 @@ int Application::run()
 
     while (!glfwWindowShouldClose(m_window))
     {
+        glfwPollEvents();
+
         update();
         processInput(m_deltaTime);
         render();
 
         glfwSwapBuffers(m_window);
-        glfwPollEvents();
     }
 
     return 0;
@@ -73,6 +74,13 @@ bool Application::initializeWindow()
 
     glfwMakeContextCurrent(m_window);
     glfwSetFramebufferSizeCallback(m_window, onFramebufferResize);
+    glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+    if (glfwRawMouseMotionSupported())
+    {
+        glfwSetInputMode(m_window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+    }
+
     glfwSwapInterval(1);
 
     return true;
@@ -124,14 +132,43 @@ void Application::processInput(float deltaTime)
     }
 
     m_camera.move(forwardInput, rightInput, deltaTime);
+    processMouseInput();
+}
+
+void Application::processMouseInput()
+{
+    double mouseX = 0.0;
+    double mouseY = 0.0;
+    glfwGetCursorPos(m_window, &mouseX, &mouseY);
+
+    // The first position only establishes a starting point. Treating it as
+    // movement would make the camera jump when the application starts.
+    if (m_isFirstMouseInput)
+    {
+        m_lastMouseX = mouseX;
+        m_lastMouseY = mouseY;
+        m_isFirstMouseInput = false;
+        return;
+    }
+
+    const float horizontalOffset = static_cast<float>(mouseX - m_lastMouseX);
+    const float verticalOffset = static_cast<float>(m_lastMouseY - mouseY);
+    m_lastMouseX = mouseX;
+    m_lastMouseY = mouseY;
+
+    // GLFW's Y coordinates increase downward, so the subtraction above is
+    // reversed to make moving the mouse upward look upward.
+    m_camera.look(horizontalOffset, verticalOffset);
 }
 
 void Application::update()
 {
     const float currentFrameTime = static_cast<float>(glfwGetTime());
     m_deltaTime = currentFrameTime - m_lastFrameTime;
-    m_elapsedTime += m_deltaTime;
     m_lastFrameTime = currentFrameTime;
+
+    m_cubeTransform.rotation.x += 0.4f * m_deltaTime;
+    m_cubeTransform.rotation.y += 1.0f * m_deltaTime;
 }
 
 void Application::render()
@@ -140,7 +177,11 @@ void Application::render()
     int framebufferHeight = 0;
     glfwGetFramebufferSize(m_window, &framebufferWidth, &framebufferHeight);
 
-    m_renderer->render(framebufferWidth, framebufferHeight, m_camera.getViewMatrix(), m_elapsedTime);
+    m_renderer->render(
+        framebufferWidth,
+        framebufferHeight,
+        m_cubeTransform.getMatrix(),
+        m_camera.getViewMatrix());
 }
 
 void Application::cleanup()

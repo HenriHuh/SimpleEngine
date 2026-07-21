@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Camera.h"
+#include "Transform.h"
 
 #include <memory>
 
@@ -24,6 +25,7 @@ private:
     bool initializeOpenGL();
 
     void processInput(float deltaTime);
+    void processMouseInput();
     void update();
     void render();
     void cleanup();
@@ -31,7 +33,10 @@ private:
     GLFWwindow* m_window = nullptr;
     std::unique_ptr<Renderer> m_renderer;
     Camera m_camera;
+    Transform m_cubeTransform;
     float m_deltaTime = 0.0f;
     float m_lastFrameTime = 0.0f;
-    float m_elapsedTime = 0.0f;
+    double m_lastMouseX = 0.0;
+    double m_lastMouseY = 0.0;
+    bool m_isFirstMouseInput = true;
 };

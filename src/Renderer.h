@@ -14,7 +14,11 @@ public:
     Renderer& operator=(const Renderer&) = delete;
 
     bool initialize();
-    void render(int framebufferWidth, int framebufferHeight, const glm::mat4& view, float elapsedTime);
+    void render(
+        int framebufferWidth,
+        int framebufferHeight,
+        const glm::mat4& model,
+        const glm::mat4& view);
     void cleanup();
 
 private:
