@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Mesh.h"
+
 class Renderer
 {
 public:
@@ -14,9 +16,8 @@ public:
     void cleanup();
 
 private:
-    bool createBoxResources();
+    bool createResources();
 
     unsigned int m_shaderProgram = 0;
-    unsigned int m_vertexArray = 0;
-    unsigned int m_vertexBuffer = 0;
+    Mesh m_cube;
 };

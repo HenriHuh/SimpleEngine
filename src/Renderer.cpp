@@ -42,51 +42,6 @@ void main()
 }
 )";
 
-constexpr std::array<float, 216> BoxVertices = {
-    // positions          // colors
-    -0.5f, -0.5f, -0.5f,  0.80f, 0.26f, 0.32f,
-     0.5f, -0.5f, -0.5f,  0.80f, 0.26f, 0.32f,
-     0.5f,  0.5f, -0.5f,  0.80f, 0.26f, 0.32f,
-     0.5f,  0.5f, -0.5f,  0.80f, 0.26f, 0.32f,
-    -0.5f,  0.5f, -0.5f,  0.80f, 0.26f, 0.32f,
-    -0.5f, -0.5f, -0.5f,  0.80f, 0.26f, 0.32f,
-
-    -0.5f, -0.5f,  0.5f,  0.20f, 0.62f, 0.92f,
-     0.5f, -0.5f,  0.5f,  0.20f, 0.62f, 0.92f,
-     0.5f,  0.5f,  0.5f,  0.20f, 0.62f, 0.92f,
-     0.5f,  0.5f,  0.5f,  0.20f, 0.62f, 0.92f,
-    -0.5f,  0.5f,  0.5f,  0.20f, 0.62f, 0.92f,
-    -0.5f, -0.5f,  0.5f,  0.20f, 0.62f, 0.92f,
-
-    -0.5f,  0.5f,  0.5f,  0.36f, 0.76f, 0.42f,
-    -0.5f,  0.5f, -0.5f,  0.36f, 0.76f, 0.42f,
-    -0.5f, -0.5f, -0.5f,  0.36f, 0.76f, 0.42f,
-    -0.5f, -0.5f, -0.5f,  0.36f, 0.76f, 0.42f,
-    -0.5f, -0.5f,  0.5f,  0.36f, 0.76f, 0.42f,
-    -0.5f,  0.5f,  0.5f,  0.36f, 0.76f, 0.42f,
-
-     0.5f,  0.5f,  0.5f,  0.95f, 0.76f, 0.24f,
-     0.5f,  0.5f, -0.5f,  0.95f, 0.76f, 0.24f,
-     0.5f, -0.5f, -0.5f,  0.95f, 0.76f, 0.24f,
-     0.5f, -0.5f, -0.5f,  0.95f, 0.76f, 0.24f,
-     0.5f, -0.5f,  0.5f,  0.95f, 0.76f, 0.24f,
-     0.5f,  0.5f,  0.5f,  0.95f, 0.76f, 0.24f,
-
-    -0.5f, -0.5f, -0.5f,  0.64f, 0.42f, 0.86f,
-     0.5f, -0.5f, -0.5f,  0.64f, 0.42f, 0.86f,
-     0.5f, -0.5f,  0.5f,  0.64f, 0.42f, 0.86f,
-     0.5f, -0.5f,  0.5f,  0.64f, 0.42f, 0.86f,
-    -0.5f, -0.5f,  0.5f,  0.64f, 0.42f, 0.86f,
-    -0.5f, -0.5f, -0.5f,  0.64f, 0.42f, 0.86f,
-
-    -0.5f,  0.5f, -0.5f,  0.96f, 0.50f, 0.22f,
-     0.5f,  0.5f, -0.5f,  0.96f, 0.50f, 0.22f,
-     0.5f,  0.5f,  0.5f,  0.96f, 0.50f, 0.22f,
-     0.5f,  0.5f,  0.5f,  0.96f, 0.50f, 0.22f,
-    -0.5f,  0.5f,  0.5f,  0.96f, 0.50f, 0.22f,
-    -0.5f,  0.5f, -0.5f,  0.96f, 0.50f, 0.22f,
-};
-
 unsigned int compileShader(unsigned int shaderType, const char* source)
 {
     const unsigned int shader = glCreateShader(shaderType);
@@ -153,10 +108,10 @@ Renderer::~Renderer()
 bool Renderer::initialize()
 {
     glEnable(GL_DEPTH_TEST);
-    return createBoxResources();
+    return createResources();
 }
 
-bool Renderer::createBoxResources()
+bool Renderer::createResources()
 {
     m_shaderProgram = createShaderProgram();
     if (m_shaderProgram == 0)
@@ -164,25 +119,8 @@ bool Renderer::createBoxResources()
         return false;
     }
 
-    glGenVertexArrays(1, &m_vertexArray);
-    glGenBuffers(1, &m_vertexBuffer);
-
-    glBindVertexArray(m_vertexArray);
-
-    glBindBuffer(GL_ARRAY_BUFFER, m_vertexBuffer);
-    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(BoxVertices.size() * sizeof(float)), BoxVertices.data(), GL_STATIC_DRAW);
-
-    constexpr int stride = 6 * sizeof(float);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, nullptr);
-    glEnableVertexAttribArray(0);
-
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
-
-    return true;
+    m_cube = Mesh::createCube();
+    return m_cube.isValid();
 }
 
 void Renderer::render(int framebufferWidth, int framebufferHeight, float elapsedTime)
@@ -201,24 +139,12 @@ void Renderer::render(int framebufferWidth, int framebufferHeight, float elapsed
     glUniformMatrix4fv(glGetUniformLocation(m_shaderProgram, "uView"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(glGetUniformLocation(m_shaderProgram, "uProjection"), 1, GL_FALSE, glm::value_ptr(projection));
 
-    glBindVertexArray(m_vertexArray);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-    glBindVertexArray(0);
+    m_cube.draw();
 }
 
 void Renderer::cleanup()
 {
-    if (m_vertexBuffer != 0)
-    {
-        glDeleteBuffers(1, &m_vertexBuffer);
-        m_vertexBuffer = 0;
-    }
-
-    if (m_vertexArray != 0)
-    {
-        glDeleteVertexArrays(1, &m_vertexArray);
-        m_vertexArray = 0;
-    }
+    m_cube.cleanup();
 
     if (m_shaderProgram != 0)
     {
