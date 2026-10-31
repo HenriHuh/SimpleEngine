@@ -14,6 +14,12 @@ struct ModelPart
     glm::mat4 localTransform{1.0f};
 };
 
+struct BoundingSphere
+{
+    glm::vec3 center{0.0f};
+    float radius = 0.0f;
+};
+
 class Model
 {
 public:
@@ -28,9 +34,12 @@ public:
 
     bool isValid() const;
     const std::vector<ModelPart>& getParts() const;
+    // Model-space bounds include all imported node transforms.
+    const BoundingSphere& getBoundingSphere() const;
     const std::string& getLastError() const;
 
 private:
     std::vector<ModelPart> m_parts;
     std::string m_lastError;
+    BoundingSphere m_boundingSphere;
 };

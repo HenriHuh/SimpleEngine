@@ -13,7 +13,6 @@ constexpr int RaycastDamage = 1;
 constexpr float ProjectileInterval = 0.8f;
 constexpr float ProjectileSpeed = 12.0f;
 constexpr int ProjectileDamage = 5;
-constexpr float EnemyCollisionRadius = 0.8f;
 constexpr int EnemyCount = 5;
 constexpr float MinimumSpawnDistance = 8.0f;
 constexpr float MaximumSpawnDistance = 16.0f;
@@ -123,7 +122,7 @@ void Game::shootRaycast()
             origin,
             direction,
             enemy.transform.position,
-            EnemyCollisionRadius,
+            enemy.getCollisionRadius(),
             closestDistance);
 
         if (hitDistance >= 0.0f && hitDistance < closestDistance)
@@ -181,7 +180,8 @@ void Game::updateProjectiles(float deltaTime)
             const glm::vec3 enemyOffset = start - enemy.transform.position;
             // Starting inside a sphere is an immediate hit, even without movement.
             float hitDistance = -1.0f;
-            if (glm::dot(enemyOffset, enemyOffset) <= EnemyCollisionRadius * EnemyCollisionRadius)
+            const float radius = enemy.getCollisionRadius();
+            if (glm::dot(enemyOffset, enemyOffset) <= radius * radius)
             {
                 hitDistance = 0.0f;
             }
@@ -189,7 +189,7 @@ void Game::updateProjectiles(float deltaTime)
             {
                 hitDistance = raySphereHitDistance(
                     start, direction, enemy.transform.position,
-                    EnemyCollisionRadius, closestDistance);
+                    radius, closestDistance);
             }
 
             if (hitDistance >= 0.0f && (!closestEnemy || hitDistance < closestDistance))

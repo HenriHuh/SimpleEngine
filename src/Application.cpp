@@ -139,6 +139,12 @@ bool Application::initializeOpenGL()
                   << " Falling back to cubes.\n";
         m_enemyModel.reset();
     }
+    else
+    {
+        const BoundingSphere& bounds = m_enemyModel->getBoundingSphere();
+        m_enemyModelTransform = glm::scale(glm::mat4(1.0f), glm::vec3(Enemy::CollisionRadius / bounds.radius))
+            * glm::translate(glm::mat4(1.0f), -bounds.center);
+    }
 
     return true;
 }
@@ -231,16 +237,13 @@ void Application::render()
     {
         if (m_enemyModel)
         {
-            // The Blender placeholder is larger than the old unit cube, so
-            // keep its rendered size close to the existing collision radius.
-            const glm::mat4 modelTransform = glm::scale(
-                enemy.transform.getMatrix(),
-                glm::vec3(0.25f));
+            const glm::mat4 modelTransform = enemy.transform.getMatrix() * m_enemyModelTransform;
             m_renderer->drawModel(*m_enemyModel, modelTransform, glm::vec3(0.25f, 0.65f, 0.9f));
         }
         else
         {
-            m_renderer->drawCube(enemy.transform.getMatrix());
+            const float cubeRadius = glm::sqrt(3.0f) * 0.5f;
+            m_renderer->drawCube(glm::scale(enemy.transform.getMatrix(), glm::vec3(Enemy::CollisionRadius / cubeRadius)));
         }
     }
 

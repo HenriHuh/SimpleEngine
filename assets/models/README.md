@@ -19,6 +19,12 @@ Render a loaded model with a world transform and fixed color:
 renderer.drawModel(spaceship, transform.getMatrix(), glm::vec3(0.7f, 0.8f, 0.9f));
 ```
 
+`Model::getBoundingSphere()` returns bounds covering the rendered vertices after
+imported node transforms. Enemy rendering recenters these bounds at the enemy
+position and uniformly fits them to `Enemy::CollisionRadius`. Both weapons use
+that radius, enlarged by the largest absolute enemy scale component. This is a
+bounding-sphere approximation rather than collision against the ship's triangles.
+
 The current importer supports triangle primitives with positions, normals,
 texture coordinates, and 8-, 16-, or 32-bit unsigned indices. Materials,
 textures, animations, sparse accessors, and non-triangle primitives are not

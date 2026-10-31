@@ -19,9 +19,17 @@ struct GameInput
 
 struct Enemy
 {
+    static constexpr float CollisionRadius = 0.8f;
+
     Transform transform;
     int id = 0;
     int health = 5;
+
+    float getCollisionRadius() const
+    {
+        const glm::vec3 scale = glm::abs(transform.scale);
+        return CollisionRadius * glm::max(scale.x, glm::max(scale.y, scale.z));
+    }
 };
 
 struct Projectile

@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <iostream>
@@ -263,6 +264,7 @@ bool loadPrimitive(
     const tinygltf::Primitive& primitive,
     const glm::mat4& transform,
     std::vector<ModelPart>& parts,
+    std::vector<glm::vec3>& modelPositions,
     std::string& error)
 {
     if (primitive.mode != -1 && primitive.mode != TINYGLTF_MODE_TRIANGLES)
@@ -372,6 +374,11 @@ bool loadPrimitive(
         return false;
     }
 
+    for (std::uint32_t index : indices)
+    {
+        modelPositions.push_back(glm::vec3(transform * glm::vec4(vertices[index].position, 1.0f)));
+    }
+
     Mesh mesh = Mesh::create(vertices, indices);
     if (!mesh.isValid())
     {
@@ -388,6 +395,7 @@ bool loadMesh(
     int meshIndex,
     const glm::mat4& transform,
     std::vector<ModelPart>& parts,
+    std::vector<glm::vec3>& modelPositions,
     std::string& error)
 {
     if (meshIndex < 0 || meshIndex >= static_cast<int>(source.meshes.size()))
@@ -398,7 +406,7 @@ bool loadMesh(
 
     for (const tinygltf::Primitive& primitive : source.meshes[meshIndex].primitives)
     {
-        if (!loadPrimitive(source, primitive, transform, parts, error))
+        if (!loadPrimitive(source, primitive, transform, parts, modelPositions, error))
         {
             return false;
         }
@@ -412,6 +420,7 @@ bool loadNode(
     const glm::mat4& parentTransform,
     std::vector<bool>& activeNodes,
     std::vector<ModelPart>& parts,
+    std::vector<glm::vec3>& modelPositions,
     std::string& error)
 {
     if (nodeIndex < 0 || nodeIndex >= static_cast<int>(source.nodes.size()))
@@ -429,14 +438,14 @@ bool loadNode(
     const tinygltf::Node& node = source.nodes[nodeIndex];
     const glm::mat4 transform = parentTransform * getNodeTransform(node);
 
-    if (node.mesh >= 0 && !loadMesh(source, node.mesh, transform, parts, error))
+    if (node.mesh >= 0 && !loadMesh(source, node.mesh, transform, parts, modelPositions, error))
     {
         return false;
     }
 
     for (int childIndex : node.children)
     {
-        if (!loadNode(source, childIndex, transform, activeNodes, parts, error))
+        if (!loadNode(source, childIndex, transform, activeNodes, parts, modelPositions, error))
         {
             return false;
         }
@@ -451,6 +460,7 @@ bool Model::loadFromFile(const std::filesystem::path& path)
 {
     m_parts.clear();
     m_lastError.clear();
+    m_boundingSphere = {};
 
     std::string extension = path.extension().string();
     std::transform(extension.begin(), extension.end(), extension.begin(),
@@ -486,6 +496,7 @@ bool Model::loadFromFile(const std::filesystem::path& path)
         return false;
     }
 
+    std::vector<glm::vec3> modelPositions;
     std::vector<bool> activeNodes(source.nodes.size(), false);
     if (!source.scenes.empty())
     {
@@ -498,7 +509,7 @@ bool Model::loadFromFile(const std::filesystem::path& path)
 
         for (int nodeIndex : source.scenes[sceneIndex].nodes)
         {
-            if (!loadNode(source, nodeIndex, glm::mat4(1.0f), activeNodes, m_parts, m_lastError))
+            if (!loadNode(source, nodeIndex, glm::mat4(1.0f), activeNodes, m_parts, modelPositions, m_lastError))
             {
                 m_parts.clear();
                 return false;
@@ -509,7 +520,7 @@ bool Model::loadFromFile(const std::filesystem::path& path)
     {
         for (int meshIndex = 0; meshIndex < static_cast<int>(source.meshes.size()); ++meshIndex)
         {
-            if (!loadMesh(source, meshIndex, glm::mat4(1.0f), m_parts, m_lastError))
+            if (!loadMesh(source, meshIndex, glm::mat4(1.0f), m_parts, modelPositions, m_lastError))
             {
                 m_parts.clear();
                 return false;
@@ -523,7 +534,32 @@ bool Model::loadFromFile(const std::filesystem::path& path)
         return false;
     }
 
+    glm::vec3 minimum(std::numeric_limits<float>::max());
+    glm::vec3 maximum(std::numeric_limits<float>::lowest());
+    for (const glm::vec3& position : modelPositions)
+    {
+        minimum = glm::min(minimum, position);
+        maximum = glm::max(maximum, position);
+    }
+    const glm::vec3 center = (minimum + maximum) * 0.5f;
+    float radius = 0.0f;
+    for (const glm::vec3& position : modelPositions)
+    {
+        radius = std::max(radius, glm::length(position - center));
+    }
+    if (radius <= 0.0f || !std::isfinite(radius))
+    {
+        m_lastError = "The model has degenerate or invalid bounds.";
+        m_parts.clear();
+        return false;
+    }
+    m_boundingSphere = {center, radius};
     return true;
+}
+
+const BoundingSphere& Model::getBoundingSphere() const
+{
+    return m_boundingSphere;
 }
 
 bool Model::isValid() const

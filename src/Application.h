@@ -33,6 +33,7 @@ private:
     GLFWwindow* m_window = nullptr;
     std::unique_ptr<Renderer> m_renderer;
     std::unique_ptr<Model> m_enemyModel;
+    glm::mat4 m_enemyModelTransform{1.0f};
     Game m_game;
     float m_deltaTime = 0.0f;
     double m_lastFrameTime = 0.0;
