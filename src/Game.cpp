@@ -161,24 +161,50 @@ void Game::updateProjectiles(float deltaTime)
 {
     for (Projectile& projectile : m_projectiles)
     {
-        projectile.transform.position += projectile.velocity * deltaTime;
-        projectile.remainingLifetime -= deltaTime;
-
         if (projectile.remainingLifetime <= 0.0f)
         {
             continue;
         }
 
+        // Sweep only the portion of this frame for which the projectile is alive.
+        const float travelTime = std::min(deltaTime, projectile.remainingLifetime);
+        const glm::vec3 start = projectile.transform.position;
+        const glm::vec3 displacement = projectile.velocity * travelTime;
+        const float travelDistance = glm::length(displacement);
+        const glm::vec3 direction = travelDistance > 0.0f
+            ? displacement / travelDistance : glm::vec3(0.0f);
+        Enemy* closestEnemy = nullptr;
+        float closestDistance = travelDistance;
+
         for (Enemy& enemy : m_enemies)
         {
-            const glm::vec3 enemyOffset = projectile.transform.position - enemy.transform.position;
-            const bool hitEnemy = glm::dot(enemyOffset, enemyOffset) <= EnemyCollisionRadius * EnemyCollisionRadius;
-            if (hitEnemy)
+            const glm::vec3 enemyOffset = start - enemy.transform.position;
+            // Starting inside a sphere is an immediate hit, even without movement.
+            float hitDistance = -1.0f;
+            if (glm::dot(enemyOffset, enemyOffset) <= EnemyCollisionRadius * EnemyCollisionRadius)
             {
-                projectile.remainingLifetime = 0.0f;
-                damageEnemy(enemy, projectile.damage);
-                break;
+                hitDistance = 0.0f;
             }
+            else if (travelDistance > 0.0f)
+            {
+                hitDistance = raySphereHitDistance(
+                    start, direction, enemy.transform.position,
+                    EnemyCollisionRadius, closestDistance);
+            }
+
+            if (hitDistance >= 0.0f && (!closestEnemy || hitDistance < closestDistance))
+            {
+                closestEnemy = &enemy;
+                closestDistance = hitDistance;
+            }
+        }
+
+        projectile.transform.position = start + direction * closestDistance;
+        projectile.remainingLifetime -= deltaTime;
+        if (closestEnemy)
+        {
+            projectile.remainingLifetime = 0.0f;
+            damageEnemy(*closestEnemy, projectile.damage);
         }
     }
 

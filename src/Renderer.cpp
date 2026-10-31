@@ -4,6 +4,7 @@
 
 #include <glad/gl.h>
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -13,7 +14,7 @@
 namespace
 {
 // A vertex shader runs once for every vertex submitted by the mesh. Attribute
-// locations 0 and 1 match the position and color layout configured by Mesh.
+// locations 0 and 1 match the position and normal layout configured by Mesh.
 constexpr const char* VertexShaderSource = R"(
 #version 330 core
 
@@ -24,9 +25,16 @@ layout (location = 2) in vec2 aTextureCoordinates;
 uniform mat4 uModel;
 uniform mat4 uView;
 uniform mat4 uProjection;
+uniform mat3 uNormalMatrix;
+
+out vec3 vWorldNormal;
 
 void main()
 {
+    // Normals need the inverse-transpose of the model transform to remain
+    // perpendicular to a surface when an object is scaled.
+    vWorldNormal = normalize(uNormalMatrix * aNormal);
+
     // Move the vertex from local space, through world and camera space, into
     // clip space. OpenGL uses gl_Position to assemble and rasterize triangles.
     gl_Position = uProjection * uView * uModel * vec4(aPosition, 1.0);
@@ -34,17 +42,25 @@ void main()
 )";
 
 // A fragment shader runs for every covered screen sample (roughly, every pixel
-// of the triangle). Here it simply writes the interpolated vertex color.
+// of the triangle). It combines ambient light with diffuse directional light.
 constexpr const char* FragmentShaderSource = R"(
 #version 330 core
+
+in vec3 vWorldNormal;
 
 out vec4 fragColor;
 
 uniform vec3 uColor;
+uniform vec3 uLightDirection;
+uniform vec3 uLightColor;
+uniform vec3 uAmbientColor;
 
 void main()
 {
-    fragColor = vec4(uColor, 1.0);
+    vec3 normal = normalize(vWorldNormal);
+    float diffuseStrength = max(dot(normal, normalize(uLightDirection)), 0.0);
+    vec3 lighting = uAmbientColor + uLightColor * diffuseStrength;
+    fragColor = vec4(uColor * lighting, 1.0);
 }
 )";
 
@@ -272,6 +288,16 @@ void Renderer::beginFrame(int framebufferWidth, int framebufferHeight, const glm
     glUniformMatrix4fv(glGetUniformLocation(m_shaderProgram, "uView"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(glGetUniformLocation(m_shaderProgram, "uProjection"), 1, GL_FALSE, glm::value_ptr(projection));
 
+    // The direction points from each surface toward the light. Slightly cool
+    // ambient light keeps shadowed faces readable while the warm key light
+    // gives the model enough contrast to reveal its shape.
+    const glm::vec3 lightDirection = glm::normalize(glm::vec3(-0.4f, 1.0f, 0.6f));
+    const glm::vec3 lightColor(0.95f, 0.90f, 0.80f);
+    const glm::vec3 ambientColor(0.16f, 0.19f, 0.24f);
+    glUniform3fv(glGetUniformLocation(m_shaderProgram, "uLightDirection"), 1, glm::value_ptr(lightDirection));
+    glUniform3fv(glGetUniformLocation(m_shaderProgram, "uLightColor"), 1, glm::value_ptr(lightColor));
+    glUniform3fv(glGetUniformLocation(m_shaderProgram, "uAmbientColor"), 1, glm::value_ptr(ambientColor));
+
     // Lines share the same camera matrices as meshes, but use a separate
     // shader because they have a single fading color instead of vertex colors.
     glUseProgram(m_lineShaderProgram);
@@ -290,6 +316,8 @@ void Renderer::drawMesh(const Mesh& mesh, const glm::mat4& model, const glm::vec
     // set by beginFrame are shared by every object in the frame.
     glUseProgram(m_shaderProgram);
     glUniformMatrix4fv(glGetUniformLocation(m_shaderProgram, "uModel"), 1, GL_FALSE, glm::value_ptr(model));
+    const glm::mat3 normalMatrix = glm::inverseTranspose(glm::mat3(model));
+    glUniformMatrix3fv(glGetUniformLocation(m_shaderProgram, "uNormalMatrix"), 1, GL_FALSE, glm::value_ptr(normalMatrix));
     glUniform3fv(glGetUniformLocation(m_shaderProgram, "uColor"), 1, glm::value_ptr(color));
 
     // Mesh::draw binds the mesh's vertex layout and asks OpenGL to draw its

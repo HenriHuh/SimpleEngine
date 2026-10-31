@@ -17,6 +17,9 @@
 # Debugger Files
 *.pdb
 
+# Visual Studio workspace cache
+.vs/
+
 # Compiled Dynamic libraries
 *.so
 *.dylib
