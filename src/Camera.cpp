@@ -38,7 +38,7 @@ void Camera::look(float horizontalOffset, float verticalOffset)
 
     // Looking exactly straight up or down makes the forward and up directions
     // parallel, so stop just short of 90 degrees to keep the view stable.
-    const float pitchLimit = glm::radians(89.0f);
+    constexpr float pitchLimit = glm::radians(89.0f);
     m_transform.rotation.x = glm::clamp(m_transform.rotation.x, -pitchLimit, pitchLimit);
 }
 

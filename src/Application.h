@@ -35,7 +35,7 @@ private:
     std::unique_ptr<Model> m_enemyModel;
     Game m_game;
     float m_deltaTime = 0.0f;
-    float m_lastFrameTime = 0.0f;
+    double m_lastFrameTime = 0.0;
     double m_lastMouseX = 0.0;
     double m_lastMouseY = 0.0;
     bool m_isFirstMouseInput = true;

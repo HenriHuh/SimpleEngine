@@ -10,6 +10,7 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <algorithm>
 #include <filesystem>
 #include <iostream>
 
@@ -17,6 +18,7 @@ namespace
 {
 constexpr int WindowWidth = 1280;
 constexpr int WindowHeight = 720;
+constexpr double MaximumDeltaTime = 0.05;
 
 void onFramebufferResize(GLFWwindow*, int width, int height)
 {
@@ -38,9 +40,25 @@ int Application::run()
         return 1;
     }
 
+    m_lastFrameTime = glfwGetTime();
+
     while (!glfwWindowShouldClose(m_window))
     {
         glfwPollEvents();
+        if (glfwWindowShouldClose(m_window))
+        {
+            break;
+        }
+
+        if (!glfwGetWindowAttrib(m_window, GLFW_FOCUSED)
+            || glfwGetWindowAttrib(m_window, GLFW_ICONIFIED))
+        {
+            glfwWaitEvents();
+            m_lastFrameTime = glfwGetTime();
+            m_deltaTime = 0.0f;
+            m_isFirstMouseInput = true;
+            continue;
+        }
 
         updateFrameTime();
         const GameInput input = processInput();
@@ -105,7 +123,6 @@ bool Application::initializeOpenGL()
     glViewport(0, 0, framebufferWidth, framebufferHeight);
 
     m_renderer = std::make_unique<Renderer>();
-    m_lastFrameTime = static_cast<float>(glfwGetTime());
     if (!m_renderer->initialize())
     {
         return false;
@@ -196,8 +213,9 @@ void Application::processMouseInput(GameInput& input)
 
 void Application::updateFrameTime()
 {
-    const float currentFrameTime = static_cast<float>(glfwGetTime());
-    m_deltaTime = currentFrameTime - m_lastFrameTime;
+    const double currentFrameTime = glfwGetTime();
+    // Discard excess elapsed time after a stall instead of catching up in one step.
+    m_deltaTime = static_cast<float>(std::clamp(currentFrameTime - m_lastFrameTime, 0.0, MaximumDeltaTime));
     m_lastFrameTime = currentFrameTime;
 }
 
