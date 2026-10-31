@@ -9,115 +9,14 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <array>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <sstream>
+#include <string>
 
 namespace
 {
-// A vertex shader runs once for every vertex submitted by the mesh. Attribute
-// locations 0 and 1 match the position and normal layout configured by Mesh.
-constexpr const char* VertexShaderSource = R"(
-#version 330 core
-
-layout (location = 0) in vec3 aPosition;
-layout (location = 1) in vec3 aNormal;
-layout (location = 2) in vec2 aTextureCoordinates;
-
-uniform mat4 uModel;
-uniform mat4 uView;
-uniform mat4 uProjection;
-uniform mat3 uNormalMatrix;
-
-out vec3 vWorldNormal;
-
-void main()
-{
-    // Normals need the inverse-transpose of the model transform to remain
-    // perpendicular to a surface when an object is scaled.
-    vWorldNormal = normalize(uNormalMatrix * aNormal);
-
-    // Move the vertex from local space, through world and camera space, into
-    // clip space. OpenGL uses gl_Position to assemble and rasterize triangles.
-    gl_Position = uProjection * uView * uModel * vec4(aPosition, 1.0);
-}
-)";
-
-// A fragment shader runs for every covered screen sample (roughly, every pixel
-// of the triangle). It combines ambient light with diffuse directional light.
-constexpr const char* FragmentShaderSource = R"(
-#version 330 core
-
-in vec3 vWorldNormal;
-
-out vec4 fragColor;
-
-uniform vec3 uColor;
-uniform vec3 uLightDirection;
-uniform vec3 uLightColor;
-uniform vec3 uAmbientColor;
-
-void main()
-{
-    vec3 normal = normalize(vWorldNormal);
-    float diffuseStrength = max(dot(normal, normalize(uLightDirection)), 0.0);
-    vec3 lighting = uAmbientColor + uLightColor * diffuseStrength;
-    fragColor = vec4(uColor * lighting, 1.0);
-}
-)";
-
-// Crosshair positions are stored as pixel offsets from the center of the
-// framebuffer. The shader converts them into OpenGL's -1 to +1 screen space.
-constexpr const char* CrosshairVertexShaderSource = R"(
-#version 330 core
-
-layout (location = 0) in vec2 aPixelOffset;
-
-uniform vec2 uFramebufferSize;
-
-void main()
-{
-    vec2 screenOffset = (aPixelOffset * 2.0) / uFramebufferSize;
-    gl_Position = vec4(screenOffset, 0.0, 1.0);
-}
-)";
-
-constexpr const char* CrosshairFragmentShaderSource = R"(
-#version 330 core
-
-out vec4 fragColor;
-
-void main()
-{
-    fragColor = vec4(0.95, 0.98, 1.0, 1.0);
-}
-)";
-
-constexpr const char* LineVertexShaderSource = R"(
-#version 330 core
-
-layout (location = 0) in vec3 aPosition;
-
-uniform mat4 uView;
-uniform mat4 uProjection;
-
-void main()
-{
-    gl_Position = uProjection * uView * vec4(aPosition, 1.0);
-}
-)";
-
-constexpr const char* LineFragmentShaderSource = R"(
-#version 330 core
-
-uniform vec4 uColor;
-
-out vec4 fragColor;
-
-void main()
-{
-    fragColor = uColor;
-}
-)";
-
 // Four two-pixel-wide rectangles form a crosshair with a small center gap.
 constexpr std::array<float, 48> CrosshairVertices = {
     -11.0f, -1.0f,  -3.0f, -1.0f,  -3.0f,  1.0f,
@@ -133,11 +32,29 @@ constexpr std::array<float, 48> CrosshairVertices = {
       1.0f, 11.0f,  -1.0f, 11.0f,  -1.0f,  3.0f,
 };
 
-unsigned int compileShader(unsigned int shaderType, const char* source)
+unsigned int compileShader(unsigned int shaderType, const std::filesystem::path& path)
 {
+    std::ifstream file(path, std::ios::binary);
+    if (!file)
+    {
+        std::cerr << "Failed to open shader file: " << path << '\n';
+        return 0;
+    }
+
+    std::ostringstream sourceStream;
+    sourceStream << file.rdbuf();
+    if (!sourceStream || file.bad())
+    {
+        std::cerr << "Failed to read shader file (unreadable or empty): " << path << '\n';
+        return 0;
+    }
+
+    const std::string source = sourceStream.str();
+    const char* sourceData = source.c_str();
+
     // Shader source code is compiled by the graphics driver at runtime.
     const unsigned int shader = glCreateShader(shaderType);
-    glShaderSource(shader, 1, &source, nullptr);
+    glShaderSource(shader, 1, &sourceData, nullptr);
     glCompileShader(shader);
 
     // Compilation errors are reported here instead of failing silently later
@@ -148,7 +65,7 @@ unsigned int compileShader(unsigned int shaderType, const char* source)
     {
         std::array<char, 1024> infoLog{};
         glGetShaderInfoLog(shader, static_cast<int>(infoLog.size()), nullptr, infoLog.data());
-        std::cerr << "Shader compilation failed:\n" << infoLog.data() << '\n';
+        std::cerr << "Shader compilation failed: " << path << '\n' << infoLog.data() << '\n';
         glDeleteShader(shader);
         return 0;
     }
@@ -156,17 +73,17 @@ unsigned int compileShader(unsigned int shaderType, const char* source)
     return shader;
 }
 
-unsigned int createShaderProgram(const char* vertexSource, const char* fragmentSource)
+unsigned int createShaderProgram(const std::filesystem::path& vertexPath, const std::filesystem::path& fragmentPath)
 {
     // Vertex and fragment shaders are compiled independently, then linked into
     // one program that represents the programmable part of our pipeline.
-    const unsigned int vertexShader = compileShader(GL_VERTEX_SHADER, vertexSource);
+    const unsigned int vertexShader = compileShader(GL_VERTEX_SHADER, vertexPath);
     if (vertexShader == 0)
     {
         return 0;
     }
 
-    const unsigned int fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentSource);
+    const unsigned int fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentPath);
     if (fragmentShader == 0)
     {
         glDeleteShader(vertexShader);
@@ -189,7 +106,8 @@ unsigned int createShaderProgram(const char* vertexSource, const char* fragmentS
     {
         std::array<char, 1024> infoLog{};
         glGetProgramInfoLog(shaderProgram, static_cast<int>(infoLog.size()), nullptr, infoLog.data());
-        std::cerr << "Shader linking failed:\n" << infoLog.data() << '\n';
+        std::cerr << "Shader linking failed: " << vertexPath << " and " << fragmentPath
+                  << '\n' << infoLog.data() << '\n';
         glDeleteProgram(shaderProgram);
         return 0;
     }
@@ -213,21 +131,24 @@ bool Renderer::initialize()
 
 bool Renderer::createResources()
 {
+    const std::filesystem::path shaderDirectory =
+        std::filesystem::path(SIMPLE_ENGINE_ASSET_DIR) / "shaders";
+
     // These objects live on the GPU and only need to be created once. Each frame
     // can then reuse the same shader program and cube buffers.
-    m_shaderProgram = createShaderProgram(VertexShaderSource, FragmentShaderSource);
+    m_shaderProgram = createShaderProgram(shaderDirectory / "mesh.vert", shaderDirectory / "mesh.frag");
     if (m_shaderProgram == 0)
     {
         return false;
     }
 
-    m_crosshairShaderProgram = createShaderProgram(CrosshairVertexShaderSource, CrosshairFragmentShaderSource);
+    m_crosshairShaderProgram = createShaderProgram(shaderDirectory / "crosshair.vert", shaderDirectory / "crosshair.frag");
     if (m_crosshairShaderProgram == 0)
     {
         return false;
     }
 
-    m_lineShaderProgram = createShaderProgram(LineVertexShaderSource, LineFragmentShaderSource);
+    m_lineShaderProgram = createShaderProgram(shaderDirectory / "line.vert", shaderDirectory / "line.frag");
     if (m_lineShaderProgram == 0)
     {
         return false;
