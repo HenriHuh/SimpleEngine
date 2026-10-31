@@ -20,6 +20,11 @@ public:
     int run();
 
 private:
+    struct WindowDeleter
+    {
+        void operator()(GLFWwindow* window) const noexcept;
+    };
+
     bool initialize();
     bool initializeWindow();
     bool initializeOpenGL();
@@ -30,7 +35,7 @@ private:
     void render();
     void cleanup();
 
-    GLFWwindow* m_window = nullptr;
+    std::unique_ptr<GLFWwindow, WindowDeleter> m_window;
     std::unique_ptr<Renderer> m_renderer;
     std::unique_ptr<Model> m_enemyModel;
     glm::mat4 m_enemyModelTransform{1.0f};

@@ -28,6 +28,11 @@ void onFramebufferResize(GLFWwindow*, int width, int height)
 
 Application::Application() = default;
 
+void Application::WindowDeleter::operator()(GLFWwindow* window) const noexcept
+{
+    glfwDestroyWindow(window);
+}
+
 Application::~Application()
 {
     cleanup();
@@ -42,16 +47,16 @@ int Application::run()
 
     m_lastFrameTime = glfwGetTime();
 
-    while (!glfwWindowShouldClose(m_window))
+    while (!glfwWindowShouldClose(m_window.get()))
     {
         glfwPollEvents();
-        if (glfwWindowShouldClose(m_window))
+        if (glfwWindowShouldClose(m_window.get()))
         {
             break;
         }
 
-        if (!glfwGetWindowAttrib(m_window, GLFW_FOCUSED)
-            || glfwGetWindowAttrib(m_window, GLFW_ICONIFIED))
+        if (!glfwGetWindowAttrib(m_window.get(), GLFW_FOCUSED)
+            || glfwGetWindowAttrib(m_window.get(), GLFW_ICONIFIED))
         {
             glfwWaitEvents();
             m_lastFrameTime = glfwGetTime();
@@ -65,7 +70,7 @@ int Application::run()
         m_game.update(m_deltaTime, input);
         render();
 
-        glfwSwapBuffers(m_window);
+        glfwSwapBuffers(m_window.get());
     }
 
     return 0;
@@ -88,20 +93,20 @@ bool Application::initializeWindow()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    m_window = glfwCreateWindow(WindowWidth, WindowHeight, "SimpleEngine", nullptr, nullptr);
+    m_window.reset(glfwCreateWindow(WindowWidth, WindowHeight, "SimpleEngine", nullptr, nullptr));
     if (!m_window)
     {
         std::cerr << "Failed to create window.\n";
         return false;
     }
 
-    glfwMakeContextCurrent(m_window);
-    glfwSetFramebufferSizeCallback(m_window, onFramebufferResize);
-    glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwMakeContextCurrent(m_window.get());
+    glfwSetFramebufferSizeCallback(m_window.get(), onFramebufferResize);
+    glfwSetInputMode(m_window.get(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     if (glfwRawMouseMotionSupported())
     {
-        glfwSetInputMode(m_window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+        glfwSetInputMode(m_window.get(), GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
     }
 
     glfwSwapInterval(1);
@@ -119,7 +124,7 @@ bool Application::initializeOpenGL()
 
     int framebufferWidth = 0;
     int framebufferHeight = 0;
-    glfwGetFramebufferSize(m_window, &framebufferWidth, &framebufferHeight);
+    glfwGetFramebufferSize(m_window.get(), &framebufferWidth, &framebufferHeight);
     glViewport(0, 0, framebufferWidth, framebufferHeight);
 
     m_renderer = std::make_unique<Renderer>();
@@ -153,38 +158,38 @@ GameInput Application::processInput()
 {
     GameInput input;
 
-    if (glfwGetKey(m_window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+    if (glfwGetKey(m_window.get(), GLFW_KEY_ESCAPE) == GLFW_PRESS)
     {
-        glfwSetWindowShouldClose(m_window, GLFW_TRUE);
+        glfwSetWindowShouldClose(m_window.get(), GLFW_TRUE);
     }
 
-    if (glfwGetKey(m_window, GLFW_KEY_W) == GLFW_PRESS)
+    if (glfwGetKey(m_window.get(), GLFW_KEY_W) == GLFW_PRESS)
     {
         input.moveForward += 1.0f;
     }
-    if (glfwGetKey(m_window, GLFW_KEY_S) == GLFW_PRESS)
+    if (glfwGetKey(m_window.get(), GLFW_KEY_S) == GLFW_PRESS)
     {
         input.moveForward -= 1.0f;
     }
-    if (glfwGetKey(m_window, GLFW_KEY_D) == GLFW_PRESS)
+    if (glfwGetKey(m_window.get(), GLFW_KEY_D) == GLFW_PRESS)
     {
         input.moveRight += 1.0f;
     }
-    if (glfwGetKey(m_window, GLFW_KEY_A) == GLFW_PRESS)
+    if (glfwGetKey(m_window.get(), GLFW_KEY_A) == GLFW_PRESS)
     {
         input.moveRight -= 1.0f;
     }
-    if (glfwGetKey(m_window, GLFW_KEY_SPACE) == GLFW_PRESS)
+    if (glfwGetKey(m_window.get(), GLFW_KEY_SPACE) == GLFW_PRESS)
     {
         input.moveUp += 1.0f;
     }
-    if (glfwGetKey(m_window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
+    if (glfwGetKey(m_window.get(), GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
     {
         input.moveUp -= 1.0f;
     }
 
-    input.fireRaycast = glfwGetMouseButton(m_window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
-    input.fireProjectile = glfwGetMouseButton(m_window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
+    input.fireRaycast = glfwGetMouseButton(m_window.get(), GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+    input.fireProjectile = glfwGetMouseButton(m_window.get(), GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
 
     processMouseInput(input);
     return input;
@@ -194,7 +199,7 @@ void Application::processMouseInput(GameInput& input)
 {
     double mouseX = 0.0;
     double mouseY = 0.0;
-    glfwGetCursorPos(m_window, &mouseX, &mouseY);
+    glfwGetCursorPos(m_window.get(), &mouseX, &mouseY);
 
     // The first position only establishes a starting point. Treating it as
     // movement would make the camera jump when the application starts.
@@ -229,7 +234,7 @@ void Application::render()
 {
     int framebufferWidth = 0;
     int framebufferHeight = 0;
-    glfwGetFramebufferSize(m_window, &framebufferWidth, &framebufferHeight);
+    glfwGetFramebufferSize(m_window.get(), &framebufferWidth, &framebufferHeight);
 
     m_renderer->beginFrame(framebufferWidth, framebufferHeight, m_game.getCamera().getViewMatrix());
 
@@ -267,11 +272,7 @@ void Application::cleanup()
     m_enemyModel.reset();
     m_renderer.reset();
 
-    if (m_window)
-    {
-        glfwDestroyWindow(m_window);
-        m_window = nullptr;
-    }
+    m_window.reset();
 
     glfwTerminate();
 }
