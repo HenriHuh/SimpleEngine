@@ -9,6 +9,7 @@ This is a C++ OpenGL game engine learning project. Prioritize simple, but scalab
 - Keep it simple, but do not use shortcuts for the sake of simplicity.
 - Use smart pointers where it makes sense.
 - Add comments only when they explain functionality, that isn't easily readable from existing code.
+- Clean up tests unless otherwise instructed.
 
 ## Response Expectations
 - Explain important decisions briefly.

@@ -32,6 +32,7 @@ private:
     GameInput processInput();
     void processMouseInput(GameInput& input);
     void updateFrameTime();
+    void updateWindowTitle();
     void render();
     void cleanup();
 
@@ -45,4 +46,5 @@ private:
     double m_lastMouseX = 0.0;
     double m_lastMouseY = 0.0;
     bool m_isFirstMouseInput = true;
+    bool m_wasRestartPressed = false;
 };

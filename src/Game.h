@@ -3,8 +3,14 @@
 #include "Camera.h"
 #include "Transform.h"
 
-#include <random>
 #include <vector>
+
+enum class EncounterState
+{
+    Playing,
+    Victory,
+    Defeat
+};
 
 struct GameInput
 {
@@ -15,6 +21,7 @@ struct GameInput
     float lookVertical = 0.0f;
     bool fireRaycast = false;
     bool fireProjectile = false;
+    bool restart = false;
 };
 
 struct Enemy
@@ -23,7 +30,7 @@ struct Enemy
 
     Transform transform;
     int id = 0;
-    int health = 5;
+    int health = 15;
 
     float getCollisionRadius() const
     {
@@ -54,6 +61,10 @@ public:
     Game();
 
     void update(float deltaTime, const GameInput& input);
+    void damagePlayer(int damage);
+
+    EncounterState getState() const;
+    int getPlayerHealth() const;
 
     const Camera& getCamera() const;
     const std::vector<Enemy>& getEnemies() const;
@@ -66,13 +77,14 @@ private:
     void updateProjectiles(float deltaTime);
     void updateRaycastTracers(float deltaTime);
     void damageEnemy(Enemy& enemy, int damage);
-    void spawnEnemy(Enemy& enemy);
+    void resetEncounter();
 
     Camera m_camera;
     std::vector<Enemy> m_enemies;
     std::vector<Projectile> m_projectiles;
     std::vector<RaycastTracer> m_raycastTracers;
-    std::mt19937 m_randomGenerator;
+    EncounterState m_state = EncounterState::Playing;
+    int m_playerHealth = 3;
     float m_raycastCooldown = 0.0f;
     float m_projectileCooldown = 0.0f;
 };
